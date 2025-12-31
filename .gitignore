@@ -1,0 +1,60 @@
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== Gradle =====
+.gradle/
+build/
+**/build/
+
+# ===== Local configuration =====
+local.properties
+
+# ===== Android Studio / IntelliJ =====
+.idea/
+*.iml
+*.ipr
+*.iws
+.idea_modules/
+
+# ===== Logs =====
+*.log
+
+# ===== APK / AAB =====
+*.apk
+*.aab
+
+# ===== Generated files =====
+captures/
+.externalNativeBuild/
+.cxx/
+
+# ===== Kotlin =====
+.kotlin/
+
+# ===== Lint =====
+lint-results.xml
+lint-results.html
+lint-results*.txt
+lint.xml
+
+# ===== Unit test / coverage =====
+coverage.ec
+*.exec
+
+# ===== Firebase / Google services (optional) =====
+# Uncomment if you do NOT want these in git
+# google-services.json
+# GoogleService-Info.plist
+
+# ===== Keystore files (VERY IMPORTANT) =====
+*.jks
+*.keystore
+*.key
+
+# ===== NDK =====
+obj/
+
+# ===== Temporary files =====
+*.swp
+*~
