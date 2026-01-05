@@ -142,8 +142,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getInitialUrl(): String {
-        val baseUrl = "https://local-app.getblips.app"
-        val supportedLanguages = listOf("pt", "es", "de", "fr")
+        val baseUrl = "https://getblips.app"
+        val supportedLanguages = listOf("pt", "es", "de", "fr", "en")
         val systemLang = Locale.getDefault().language
 
         return if (supportedLanguages.contains(systemLang)) {
