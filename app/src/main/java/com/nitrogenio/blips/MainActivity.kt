@@ -59,15 +59,20 @@ class MainActivity : AppCompatActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
-        if (
-            requestCode == 1 &&
-            grantResults.isNotEmpty() &&
-            grantResults[0] == PackageManager.PERMISSION_GRANTED
-        ) {
-            webView.evaluateJavascript(
-                "window.dispatchEvent(new Event('android-permission-granted'))",
-                null
-            )
+        if (requestCode == 1) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // SUCCESS: User clicked "Allow"
+                webView.evaluateJavascript(
+                    "window.dispatchEvent(new Event('android-permission-granted'))",
+                    null
+                )
+            } else {
+                // DENIED: User clicked "Don't allow" or closed the prompt
+                webView.evaluateJavascript(
+                    "window.dispatchEvent(new Event('android-permission-denied'))",
+                    null
+                )
+            }
         }
     }
 
