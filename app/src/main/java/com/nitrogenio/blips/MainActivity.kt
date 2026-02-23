@@ -1,31 +1,93 @@
 package com.nitrogenio.blips
 
-import WebAppInterface
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
+import android.provider.Settings
 import android.webkit.GeolocationPermissions
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
 import com.google.android.gms.location.LocationServices
+import java.io.File
 import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
-    private val FILE_CHOOSER_REQUEST_CODE = 1001
+    private var cameraImageUri: Uri? = null
+    private var cameraImageFile: File? = null
+
+    // For Geolocation callback storage
+    private var geolocationCallback: GeolocationPermissions.Callback? = null
+    private var geolocationOrigin: String? = null
+
+    private val fileChooserLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (fileChooserCallback == null) return@registerForActivityResult
+
+        var results: Array<Uri>? = null
+        if (result.resultCode == RESULT_OK) {
+            val data = result.data
+            if (data == null || (data.data == null && data.clipData == null)) {
+                // Check if camera file exists and has content
+                if (cameraImageFile?.exists() == true && cameraImageFile!!.length() > 0) {
+                    results = cameraImageUri?.let { arrayOf(it) }
+                }
+            } else {
+                val clipData = data.clipData
+                if (clipData != null) {
+                    results = Array(clipData.itemCount) { i ->
+                        clipData.getItemAt(i).uri
+                    }
+                } else {
+                    data.data?.let {
+                        results = arrayOf(it)
+                    }
+                }
+            }
+        }
+
+        fileChooserCallback?.onReceiveValue(results)
+        fileChooserCallback = null
+    }
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val locationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
+
+        // Handle Geolocation callback from WebView if it was waiting
+        geolocationCallback?.let { callback ->
+            geolocationOrigin?.let { origin ->
+                callback.invoke(origin, locationGranted, false)
+            }
+            geolocationCallback = null
+            geolocationOrigin = null
+        }
+
+        if (locationGranted) {
+            webView.evaluateJavascript("window.dispatchEvent(new Event('android-permission-granted'))", null)
+        } else {
+            webView.evaluateJavascript("window.dispatchEvent(new Event('android-permission-denied'))", null)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,31 +111,12 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-        checkLocationPermission()
+        checkPermissions()
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-
-        if (requestCode == 1) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // SUCCESS: User clicked "Allow"
-                webView.evaluateJavascript(
-                    "window.dispatchEvent(new Event('android-permission-granted'))",
-                    null
-                )
-            } else {
-                // DENIED: User clicked "Don't allow" or closed the prompt
-                webView.evaluateJavascript(
-                    "window.dispatchEvent(new Event('android-permission-denied'))",
-                    null
-                )
-            }
-        }
+    override fun onResume() {
+        super.onResume()
+        checkLocationProvider()
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -102,16 +145,37 @@ class MainActivity : AppCompatActivity() {
                 filePathCallback: ValueCallback<Array<Uri>>,
                 fileChooserParams: FileChooserParams
             ): Boolean {
-
-                // Clear any previous callback
                 fileChooserCallback?.onReceiveValue(null)
                 fileChooserCallback = filePathCallback
 
-                val intent = fileChooserParams.createIntent()
+                val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+                // Check if there is a camera app to handle the intent
+                if (takePictureIntent.resolveActivity(packageManager) != null) {
+                    try {
+                        val photoFile = File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "temp_blip_${System.currentTimeMillis()}.jpg")
+                        cameraImageFile = photoFile
+                        cameraImageUri = FileProvider.getUriForFile(this@MainActivity, "${applicationContext.packageName}.fileprovider", photoFile)
+                        takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, cameraImageUri)
+                    } catch (_: Exception) {
+                        cameraImageUri = null
+                        cameraImageFile = null
+                    }
+                }
+
+                val contentSelectionIntent = fileChooserParams.createIntent().apply {
+                    putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                }
+
+                val chooserIntent = Intent(Intent.ACTION_CHOOSER)
+                chooserIntent.putExtra(Intent.EXTRA_INTENT, contentSelectionIntent)
+                chooserIntent.putExtra(Intent.EXTRA_TITLE, "Select Image")
+                if (cameraImageUri != null) {
+                    chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(takePictureIntent))
+                }
 
                 try {
-                    startActivityForResult(intent, FILE_CHOOSER_REQUEST_CODE)
-                } catch (e: ActivityNotFoundException) {
+                    fileChooserLauncher.launch(chooserIntent)
+                } catch (_: ActivityNotFoundException) {
                     fileChooserCallback = null
                     return false
                 }
@@ -123,26 +187,38 @@ class MainActivity : AppCompatActivity() {
                 origin: String,
                 callback: GeolocationPermissions.Callback
             ) {
-                callback.invoke(origin, true, false)
+                if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                    callback.invoke(origin, true, false)
+                } else {
+                    geolocationCallback = callback
+                    geolocationOrigin = origin
+                    requestPermissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION))
+                }
             }
         }
 
-        val fusedLocationClient =
-            LocationServices.getFusedLocationProviderClient(this)
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        webView.addJavascriptInterface(WebAppInterface(this, webView, fusedLocationClient), "AndroidBridge")
 
-        webView.addJavascriptInterface(
-            WebAppInterface(this, webView, fusedLocationClient),
-            "AndroidBridge"
-        )
-
-        webView.loadUrl(getInitialUrl())
+        val data: Uri? = intent?.data
+        if (data != null) {
+            webView.loadUrl(data.toString())
+        } else {
+            webView.loadUrl(getInitialUrl())
+        }
     }
 
-    private fun checkLocationPermission() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1)
+    private fun checkPermissions() {
+        val permissionsToRequest = mutableListOf<String>()
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.CAMERA)
+        }
+
+        if (permissionsToRequest.isNotEmpty()) {
+            requestPermissionLauncher.launch(permissionsToRequest.toTypedArray())
         }
     }
 
@@ -158,4 +234,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun checkLocationProvider() {
+        val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
+        if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) && !locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+            AlertDialog.Builder(this)
+                .setTitle("Location Services Disabled")
+                .setMessage("This app requires Location/GPS to be enabled to work correctly. Please enable location services.")
+                .setPositiveButton("Settings") { _, _ ->
+                    val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                    startActivity(intent)
+                }
+                .setNegativeButton("Cancel") { dialog, _ ->
+                    dialog.dismiss()
+                }
+                .show()
+        }
+    }
 }

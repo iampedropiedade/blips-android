@@ -1,3 +1,5 @@
+package com.nitrogenio.blips
+
 import android.app.Activity
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
