@@ -7,11 +7,17 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.location.LocationManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
 import android.provider.Settings
+import android.view.View
+import android.widget.Button
 import android.webkit.GeolocationPermissions
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -38,6 +44,10 @@ class MainActivity : AppCompatActivity() {
     // For Geolocation callback storage
     private var geolocationCallback: GeolocationPermissions.Callback? = null
     private var geolocationOrigin: String? = null
+
+    private lateinit var connectivityManager: ConnectivityManager
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private var noConnectionView: View? = null
 
     private val fileChooserLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (fileChooserCallback == null) return@registerForActivityResult
@@ -93,6 +103,16 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, true)
         setContentView(R.layout.activity_main)
+
+        connectivityManager = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+        noConnectionView = findViewById(R.id.noConnectionOverlay)
+
+        val retryButton = findViewById<Button>(R.id.retryButton)
+        retryButton?.setOnClickListener {
+            webView.reload()
+        }
+
+        monitorNetwork()
 
         if (0 != (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE)) {
             WebView.setWebContentsDebuggingEnabled(true)
@@ -238,16 +258,52 @@ class MainActivity : AppCompatActivity() {
         val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
         if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) && !locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
             AlertDialog.Builder(this)
-                .setTitle("Location Services Disabled")
-                .setMessage("This app requires Location/GPS to be enabled to work correctly. Please enable location services.")
-                .setPositiveButton("Settings") { _, _ ->
+                .setTitle(R.string.location_disabled_title)
+                .setMessage(R.string.location_disabled_message)
+                .setPositiveButton(R.string.settings_button) { _, _ ->
                     val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
                     startActivity(intent)
                 }
-                .setNegativeButton("Cancel") { dialog, _ ->
+                .setNegativeButton(R.string.cancel_button) { dialog, _ ->
                     dialog.dismiss()
                 }
                 .show()
+        }
+    }
+
+    private fun monitorNetwork() {
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+
+        // Initial check
+        val activeNetwork = connectivityManager.activeNetwork
+        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
+        val isConnected = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        noConnectionView?.visibility = if (isConnected) View.GONE else View.VISIBLE
+
+        networkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                runOnUiThread {
+                    noConnectionView?.visibility = View.GONE
+                    webView.reload()
+                }
+            }
+
+            override fun onLost(network: Network) {
+                runOnUiThread {
+                    noConnectionView?.visibility = View.VISIBLE
+                }
+            }
+        }
+
+        connectivityManager.registerNetworkCallback(request, networkCallback!!)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        networkCallback?.let {
+            connectivityManager.unregisterNetworkCallback(it)
         }
     }
 }

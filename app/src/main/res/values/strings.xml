@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">Blips</string>
+    <string name="no_internet_title">No Internet Connection</string>
+    <string name="no_internet_message">Please check your Wi-Fi or mobile data connection and try again.</string>
+    <string name="retry_button">Try Again</string>
+    <string name="location_disabled_title">Location Services Disabled</string>
+    <string name="location_disabled_message">This app requires Location/GPS to be enabled to work correctly. Please enable location services.</string>
+    <string name="settings_button">Settings</string>
+    <string name="cancel_button">Cancel</string>
 </resources>
