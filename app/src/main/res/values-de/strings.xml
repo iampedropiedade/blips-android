@@ -1,8 +1,10 @@
 <resources>
     <string name="app_name">Blips</string>
-    <string name="no_internet_title">Keine Internetverbindung</string>
-    <string name="no_internet_message">Bitte überprüfe deine WLAN- oder mobile Datenverbindung und versuche es erneut.</string>
-    <string name="retry_button">Wiederholen</string>
+    <string name="no_internet_title">Ups! Du bist offline</string>
+    <string name="no_internet_message">Es sieht so aus, als hättest du die Verbindung verloren. Überprüfe dein WLAN oder deine Daten und lass es uns erneut versuchen!</string>
+    <string name="error_generic_title">Etwas stimmt nicht</string>
+    <string name="error_generic_message">Wir haben ein kleines Problem beim Laden der App. Versuche es in einem Moment noch einmal!</string>
+    <string name="retry_button">Erneut versuchen</string>
     <string name="location_disabled_title">Standortdienste deaktiviert</string>
     <string name="location_disabled_message">Diese App benötigt aktivierte Standortdienste/GPS, um korrekt zu funktionieren. Bitte aktiviere die Standortdienste.</string>
     <string name="settings_button">Einstellungen</string>

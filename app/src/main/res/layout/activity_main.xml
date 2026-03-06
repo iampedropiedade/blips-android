@@ -23,6 +23,7 @@
         android:focusable="true">
 
         <TextView
+            android:id="@+id/errorTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/no_internet_title"
@@ -32,6 +33,7 @@
             android:gravity="center" />
 
         <TextView
+            android:id="@+id/errorMessage"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"

@@ -1,10 +1,12 @@
 <resources>
     <string name="app_name">Blips</string>
-    <string name="no_internet_title">Sem Conexão à Internet</string>
-    <string name="no_internet_message">Verifique sua conexão Wi-Fi ou dados móveis e tente novamente.</string>
-    <string name="retry_button">Tentar Novamente</string>
-    <string name="location_disabled_title">Serviços de Localização Desativados</string>
-    <string name="location_disabled_message">Este aplicativo requer que a Localização/GPS esteja ativado para funcionar corretamente. Por favor, ative os serviços de localização.</string>
+    <string name="no_internet_title">Ups! Estás sem ligação</string>
+    <string name="no_internet_message">Parece que perdeste a tua ligação. Verifica o teu Wi-Fi ou dados e vamos tentar de novo!</string>
+    <string name="error_generic_title">Algo não está bem</string>
+    <string name="error_generic_message">Estamos com um pequeno problema a carregar a aplicação. Tenta de novo daqui a pouco!</string>
+    <string name="retry_button">Tentar de novo</string>
+    <string name="location_disabled_title">Serviços de localização desativados</string>
+    <string name="location_disabled_message">Esta aplicação requer que a Localização/GPS esteja ativada para funcionar corretamente. Por favor, ative os serviços de localização.</string>
     <string name="settings_button">Configurações</string>
     <string name="cancel_button">Cancelar</string>
 </resources>
