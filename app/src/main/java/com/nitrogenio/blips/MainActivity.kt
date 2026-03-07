@@ -80,7 +80,10 @@ class MainActivity : AppCompatActivity() {
             if (data == null || (data.data == null && data.clipData == null)) {
                 // Check if camera file exists and has content
                 if (cameraImageFile?.exists() == true && cameraImageFile!!.length() > 0) {
-                    results = cameraImageUri?.let { arrayOf(it) }
+                    results = cameraImageUri?.let { uri ->
+                        grantReadPermissionForUri(uri)
+                        arrayOf(uri)
+                    }
                 }
             } else {
                 val clipData = data.clipData
@@ -95,6 +98,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+        results?.forEach { uri -> grantReadPermissionForUri(uri) }
 
         fileChooserCallback?.onReceiveValue(results)
         fileChooserCallback = null
@@ -188,6 +192,18 @@ class MainActivity : AppCompatActivity() {
         connectivityManager.unregisterNetworkCallback(networkCallback)
     }
 
+    private fun grantReadPermissionForUri(uri: Uri) {
+        try {
+            // Some providers require explicit persisted read grants for later access.
+            contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        } catch (_: Exception) {
+        }
+        try {
+            grantUriPermission(packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        } catch (_: Exception) {
+        }
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     private fun setupWebView() {
         val settings = webView.settings
@@ -263,7 +279,7 @@ class MainActivity : AppCompatActivity() {
                         cameraImageUri = FileProvider.getUriForFile(this@MainActivity, "${applicationContext.packageName}.fileprovider", photoFile)
                         takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, cameraImageUri)
                         // Important: Grant permission to the camera app to write to our URI
-                        takePictureIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                        takePictureIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     } catch (_: Exception) {
                         cameraImageUri = null
                         cameraImageFile = null
@@ -272,11 +288,14 @@ class MainActivity : AppCompatActivity() {
 
                 val contentSelectionIntent = fileChooserParams.createIntent().apply {
                     putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
                 }
 
                 val chooserIntent = Intent(Intent.ACTION_CHOOSER)
                 chooserIntent.putExtra(Intent.EXTRA_INTENT, contentSelectionIntent)
                 chooserIntent.putExtra(Intent.EXTRA_TITLE, "Select Image")
+                chooserIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 if (cameraImageUri != null) {
                     chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(takePictureIntent))
                 }
